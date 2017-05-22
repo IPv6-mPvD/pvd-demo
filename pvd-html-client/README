@@ -1,0 +1,6 @@
+Mon May 22 14:20:39 CEST 2017
+=============================
+
+The websocket NPM package is needed for the server :
+	$ npm install websocket
+should do the trick

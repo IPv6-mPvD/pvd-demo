@@ -1,0 +1,237 @@
+<html>
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+</head>
+<script type="text/javascript">
+	var ws;
+	var CurrentPvd = null;
+	var CurrentPvdList = [];
+	var AllAttributes = {};
+	var PvdAttributesTitle;
+	var PvdAttributesContent;
+
+	function GetPvdElement(Pvd) {
+		if (Pvd == null) {
+			return(null);
+		}
+		var Id = "pvd-" + Pvd;
+		return(document.getElementById(Id));
+	}
+
+	function GetTdElement(Pvd) {
+		if (Pvd == null) {
+			return(null);
+		}
+		var Id = "pvd-" + Pvd;
+		return(document.getElementById(Id));
+	}
+
+	function DirtyPvD(Pvd) {
+		if ((Item = GetTdElement(Pvd)) != null) {
+			Item.setAttribute(
+				"style",
+				"display:block; width:100%; font-style:italic; font-weight:normal; color:grey");
+		}
+	}
+
+	function RegularPvD(Pvd) {
+		if ((Item = GetTdElement(Pvd)) != null) {
+			Item.setAttribute(
+				"style", 
+				"display:block; width:100%; font-style:normal; font-weight:normal; color:grey");
+		}
+	}
+
+	function ActivePvD(Pvd) {
+		if ((Item = GetTdElement(Pvd)) != null) {
+			Item.setAttribute(
+				"style", 
+				"display:block; width:100%; font-style:normal; font-weight:bold; color:black");
+		}
+	}
+
+	function ShowPvD(Pvd, Attributes) {
+		if (Attributes == null) {
+			Attributes = "";
+		}
+
+		if ((Item = GetPvdElement(Pvd)) != null) {
+			PvdAttributesTitle.textContent = Attributes;
+			PvdAttributesContent.textContent = "PvD Attributes : " + Pvd;
+			ActivePvD(Pvd);
+		}
+		else {
+			PvdAttributesTitle.textContent = "";
+			PvdAttributesContent.textContent = "PvD Attributes";
+			CurrentPvd = null;
+		}
+	}
+
+	function SetOnClick(Pvd) {
+		if ((Item = GetPvdElement(Pvd)) != null) {
+			Item.addEventListener("click", function(e) {
+				if (CurrentPvd != Pvd) {
+					RegularPvD(CurrentPvd);
+					CurrentPvd = Pvd;
+					ShowPvD(Pvd, AllAttributes[Pvd]);
+				}
+			}, false);
+		}
+	}
+
+	function HandleMessage(m) {
+		if (m == null) {
+			return;
+		}
+		if (m.what == "pvdList") {
+			// Create a new table of PvD
+			var pvdList = m.payload.pvdList;
+
+			var MyTable = "<table>";
+			pvdList.forEach(function(Pvd) {
+				MyTable +=
+					"<tr>" +
+						"<td id='td-" + Pvd + "'>" +
+							"<button type='button' id='pvd-" + Pvd + "'>" +
+								Pvd +
+							"</button>" +
+						"</td>" +
+					"</tr>";
+				if (AllAttributes[Pvd] == null) {
+					AllAttributes[Pvd] = "";
+				}
+			});
+			MyTable += "</table>";
+			document.getElementById("pvdList").innerHTML = MyTable;
+
+			// If the current pvd is no longer part of the
+			// new list, reset it to null
+			if (pvdList.indexOf(CurrentPvd) == -1) {
+				CurrentPvd = null;
+			}
+
+			// Delete attributes for PvD previously defined but
+			// no longer
+			CurrentPvdList.forEach(function(Pvd) {
+				if (pvdList.indexOf(Pvd) == -1) {
+					delete AllAttributes[Pvd];
+				}
+			});
+
+			// Set the attributes of the various PvD HTML items
+			// and attach callbacks
+			pvdList.forEach(function(Pvd) {
+				if (CurrentPvd == null) {
+					CurrentPvd = Pvd;
+				}
+				if (CurrentPvd == Pvd) {
+					ShowPvD(CurrentPvd, AllAttributes[CurrentPvd]);
+				}
+				else {
+					RegularPvD(Pvd);
+				}
+				SetOnClick(Pvd);
+			});
+			CurrentPvdList = pvdList;
+		} else
+		if (m.what == "pvdAttributes") {
+			var Pvd = m.payload.pvd;
+			var Attributes = m.payload.pvdAttributes;
+
+			if (Pvd == null || Attributes == null) {
+				return;
+			}
+
+			Attributes = JSON.stringify(Attributes, null, "\t");
+
+			// If the attributes have changed, make the
+			// corresponding PvD label blink to indicate
+			// the change (if it is not the currently
+			// displayed PvD)
+			if (AllAttributes[Pvd] != Attributes) {
+				if (Pvd == CurrentPvd) {
+					ShowPvD(Pvd, Attributes);
+				}
+				else {
+					DirtyPvD(Pvd);
+				}
+			}
+
+			AllAttributes[Pvd] = Attributes;
+		}
+	}
+
+	function SendWs(m) {
+		ws.send(m);
+	}
+
+	function GetJson(m) {
+		try {
+			return(JSON.parse(m));
+		}
+		catch (e) {
+			return(null);
+		}
+	}
+
+	// Attempt to perform the websocket connection. If it
+	// fails or if the connection is lost, a new attempt
+	// is done 1 second later
+	var ConnectionSucceeded = true;	// true : not a mistake. Used to limit traces
+
+	function WSConnect(WSServer) {
+		if (ws == null) {
+			ws = new WebSocket(WSServer);
+
+			ws.onopen = function(ev) {
+				console.log("websocket connection established");
+
+				SendWs("PVDID_GET_LIST");
+				SendWs("PVDID_GET_ATTRIBUTES");
+
+				ConnectionSucceeded = true;
+			};
+
+			ws.onclose = function(ev) {
+				if (ConnectionSucceeded) {
+					console.log("websocket disconnected");
+				}
+				ConnectionSucceeded = false;
+				ws = null;
+			};
+
+			ws.onmessage = function(ev) {
+				HandleMessage(GetJson(ev.data));
+			};
+
+			ws.onerror = function(ev) {
+				if (ConnectionSucceeded) {
+					console.log("Error establishing websocket connection");
+				}
+				ConnectionSucceeded = false;
+				ws = null;
+			};
+		}
+		setTimeout(WSConnect, 1000, WSServer);
+	}
+
+	document.addEventListener("DOMContentLoaded", function() {
+		PvdAttributesTitle = document.getElementById("pvdAttributes");
+		PvdAttributesContent = document.getElementById("pvdAttributesLabel");
+
+		WSConnect("ws://" + window.location.host);
+	});
+</script>
+<body>
+<table width=100% height=100%>
+<tr height=20px >
+	<td align="center" style="background-color:PeachPuff; font-style:normal; font-weight:bold">PvD List</td>
+	<td width=100% id="pvdAttributesLabel" style="background-color:PeachPuff; font-style:normal; font-weight:bold">PvD Attributes</td>
+</tr>
+<tr style="vertical-align:top" width=100%>
+	<td id="pvdList" style="background-color: AntiqueWhite" width=15%></td>
+	<td id="pvdAttributes" style="white-space: pre-wrap; background-color: Bisque" width=85% />
+</tr>
+</body>
+</html>
+
