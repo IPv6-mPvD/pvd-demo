@@ -1,2 +1,3 @@
 Session*.vim
 .*.sw?
+node_modules
