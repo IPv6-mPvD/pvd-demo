@@ -21,4 +21,4 @@ nohup node ./utils/pvdid-monitor -d >/dev/null 2>&1 &
 
 
 cd ../pvdid-demo
-nohup ./pvd-html-client/pvdHttpServer.js >/dev/null 2>&1 &
+nohup node ./pvd-html-client/pvdHttpServer.js >/dev/null 2>&1 &
