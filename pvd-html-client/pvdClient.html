@@ -83,11 +83,17 @@
 		if (m == null) {
 			return;
 		}
+		if (m.what == "hostDate") {
+			if ((Item = document.getElementById("host-date")) != null) {
+				Item.textContent = m.payload.hostDate.replace(/[TZ]/g, ' ');
+			}
+		} else
 		if (m.what == "pvdList") {
 			// Create a new table of PvD
 			var pvdList = m.payload.pvdList;
 
 			var MyTable = "<table>";
+			MyTable += "<tr><td align='center' id='host-date'></td></tr>";
 			pvdList.forEach(function(Pvd) {
 				MyTable +=
 					"<tr>" +

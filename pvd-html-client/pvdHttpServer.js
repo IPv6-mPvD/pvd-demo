@@ -240,6 +240,10 @@ server.listen(HttpPort);
 
 var ws = new WebSocketServer({ httpServer : server, autoAcceptConnections: true });
 
+function Send2Client(conn, o) {
+	conn.sendUTF(JSON.stringify(o));
+}
+
 ws.on('connect', function(conn) {
 	console.log("New websocket client");
 
@@ -253,19 +257,25 @@ ws.on('connect', function(conn) {
 	});
 
 	pvdEmitter.on("pvdList", function(ev) {
-		conn.sendUTF(JSON.stringify({
+		Send2Client(conn, {
 			what : "pvdList",
 			payload : { pvdList : ev }
-		}));
+		});
 	});
 	pvdEmitter.on("pvdAttributes", function(ev) {
-		conn.sendUTF(JSON.stringify({
+		Send2Client(conn, {
 			what : "pvdAttributes",
 			payload : {
 				pvd : ev.pvd,
 				pvdAttributes : ev.pvdAttributes
 			}
-		}));
+		});
+	});
+	pvdEmitter.on("hostDate", function(ev) {
+		Send2Client(conn, {
+			what : "hostDate",
+			payload : { hostDate : ev }
+		});
 	});
 });
 
@@ -292,3 +302,11 @@ function HandleMessage(conn, m) {
 		};
 	}
 }
+
+function SendDate() {
+	var now = new Date(Date.now());
+	pvdEmitter.emit("hostDate", now.toISOString());
+	setTimeout(SendDate, 5000);
+}
+
+SendDate();
