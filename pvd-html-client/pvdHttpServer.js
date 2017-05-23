@@ -5,6 +5,7 @@
 
 const Net = require("net");
 const http = require('http');
+const os = require("os");
 const fs = require('fs');
 const EventEmitter = require('events').EventEmitter;
 
@@ -221,6 +222,7 @@ if (Help) {
 var Port = parseInt(process.env["PVDID_PORT"]) || 10101;
 
 console.log("Listening on http port " + HttpPort + ", pvdd port " + Port);
+console.log("Hostname : " + os.hostname());
 
 regularConnection(Port);
 
@@ -246,6 +248,11 @@ function Send2Client(conn, o) {
 
 ws.on('connect', function(conn) {
 	console.log("New websocket client");
+
+	Send2Client(conn, {
+		what : "hostname",
+		payload : { hostname : os.hostname() }
+	});
 
 	conn.on("message", function(m) {
 		if (m.type == "utf8") {

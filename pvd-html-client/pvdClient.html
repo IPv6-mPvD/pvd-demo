@@ -18,16 +18,8 @@
 		return(document.getElementById(Id));
 	}
 
-	function GetTdElement(Pvd) {
-		if (Pvd == null) {
-			return(null);
-		}
-		var Id = "pvd-" + Pvd;
-		return(document.getElementById(Id));
-	}
-
 	function DirtyPvD(Pvd) {
-		if ((Item = GetTdElement(Pvd)) != null) {
+		if ((Item = GetPvdElement(Pvd)) != null) {
 			Item.setAttribute(
 				"style",
 				"display:block; width:100%; font-style:italic; font-weight:normal; color:grey");
@@ -35,7 +27,7 @@
 	}
 
 	function RegularPvD(Pvd) {
-		if ((Item = GetTdElement(Pvd)) != null) {
+		if ((Item = GetPvdElement(Pvd)) != null) {
 			Item.setAttribute(
 				"style", 
 				"display:block; width:100%; font-style:normal; font-weight:normal; color:grey");
@@ -43,10 +35,21 @@
 	}
 
 	function ActivePvD(Pvd) {
-		if ((Item = GetTdElement(Pvd)) != null) {
+		if ((Item = GetPvdElement(Pvd)) != null) {
 			Item.setAttribute(
 				"style", 
 				"display:block; width:100%; font-style:normal; font-weight:bold; color:black");
+		}
+	}
+
+	function UpdateTitle(Pvd) {
+		var PvdPart = (CurrentPvd == null) ? "" : " : " + Pvd;
+		PvdAttributesTitle.textContent = "PvD Attributes" + PvdPart;
+	}
+
+	function SetHostname(h) {
+		if (h != null) {
+			document.getElementById("title-hostname").textContent += " @ " + h;
 		}
 	}
 
@@ -56,13 +59,13 @@
 		}
 
 		if ((Item = GetPvdElement(Pvd)) != null) {
-			PvdAttributesTitle.textContent = Attributes;
-			PvdAttributesContent.textContent = "PvD Attributes : " + Pvd;
+			PvdAttributesContent.textContent = Attributes;
+			UpdateTitle(Pvd);
 			ActivePvD(Pvd);
 		}
 		else {
-			PvdAttributesTitle.textContent = "";
-			PvdAttributesContent.textContent = "PvD Attributes";
+			PvdAttributesContent.textContent = "";
+			UpdateTitle(null);
 			CurrentPvd = null;
 		}
 	}
@@ -72,8 +75,7 @@
 			Item.addEventListener("click", function(e) {
 				if (CurrentPvd != Pvd) {
 					RegularPvD(CurrentPvd);
-					CurrentPvd = Pvd;
-					ShowPvD(Pvd, AllAttributes[Pvd]);
+					ShowPvD(CurrentPvd = Pvd, AllAttributes[Pvd]);
 				}
 			}, false);
 		}
@@ -83,6 +85,9 @@
 		if (m == null) {
 			return;
 		}
+		if (m.what == "hostname") {
+			SetHostname(m.payload.hostname);
+		} else
 		if (m.what == "hostDate") {
 			if ((Item = document.getElementById("host-date")) != null) {
 				Item.textContent = m.payload.hostDate.replace(/[TZ]/g, ' ');
@@ -97,11 +102,11 @@
 			pvdList.forEach(function(Pvd) {
 				MyTable +=
 					"<tr>" +
-						"<td id='td-" + Pvd + "'>" +
-							"<button type='button' id='pvd-" + Pvd + "'>" +
-								Pvd +
-							"</button>" +
-						"</td>" +
+					    "<td>" +
+					        "<button type='button' id='pvd-" + Pvd + "'>" +
+						    Pvd +
+					        "</button>" +
+					    "</td>" +
 					"</tr>";
 				if (AllAttributes[Pvd] == null) {
 					AllAttributes[Pvd] = "";
@@ -151,12 +156,12 @@
 			Attributes = JSON.stringify(Attributes, null, "\t");
 
 			// If the attributes have changed, make the
-			// corresponding PvD label blink to indicate
+			// corresponding PvD button italic to indicate
 			// the change (if it is not the currently
 			// displayed PvD)
 			if (AllAttributes[Pvd] != Attributes) {
 				if (Pvd == CurrentPvd) {
-					ShowPvD(Pvd, Attributes);
+					ShowPvD(CurrentPvd, Attributes);
 				}
 				else {
 					DirtyPvD(Pvd);
@@ -222,14 +227,14 @@
 	}
 
 	document.addEventListener("DOMContentLoaded", function() {
-		PvdAttributesTitle = document.getElementById("pvdAttributes");
-		PvdAttributesContent = document.getElementById("pvdAttributesLabel");
+		PvdAttributesTitle = document.getElementById("pvdAttributesLabel");
+		PvdAttributesContent = document.getElementById("pvdAttributes");
 
 		WSConnect("ws://" + window.location.host);
 	});
 </script>
 <body>
-<h1 align="center">Multi Provisioning Domains - Monitoring Client</h1>
+<h1 align="center" id="title-hostname">Multi Provisioning Domains - Monitoring Client</h1>
 <table width=100% height=100%>
 <tr height=20px >
 	<td align="center" style="background-color:PeachPuff; font-style:normal; font-weight:bold">PvD List</td>
