@@ -41,10 +41,7 @@ function ComplainConnection(Port, err) {
 // NewPvD : registers a new pvd. If already existing, does nothing
 function NewPvD(pvdId) {
 	if (AllPvd[pvdId] == null) {
-		AllPvd[pvdId] = {
-			pvd : pvdId,
-			attributes : {},
-		};
+		AllPvd[pvdId] = { pvd : pvdId, attributes : {} };
 	}
 }
 
@@ -223,6 +220,8 @@ if (Help) {
 
 var Port = parseInt(process.env["PVDID_PORT"]) || 10101;
 
+console.log("Listening on http port " + HttpPort + ", pvdd port " + Port);
+
 regularConnection(Port);
 
 // =================================================
@@ -232,7 +231,7 @@ regularConnection(Port);
 // via the websocket (for PvD related informations)
 
 var server = http.createServer(function(req, res) {
-	var page = fs.readFileSync("pvdClient.html");
+	var page = fs.readFileSync(__dirname + "/pvdClient.html");
 	res.writeHead(200);
 	res.end(page);
 });
