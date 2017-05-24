@@ -115,7 +115,7 @@ function HandleOneLine(sock, msg) {
 	// Single line messages
 	if ((r = msg.match(/PVDID_LIST +(.*)/i)) != null) {
 		if ((newListPvD = r[1].match(/[^ ]+/g)) == null) {
-			return;
+			newListPvD = [];
 		}
 
 		newListPvD.forEach(function(pvdId) {
@@ -125,16 +125,11 @@ function HandleOneLine(sock, msg) {
 				sock.write("PVDID_GET_ATTRIBUTES " + pvdId + "\n");
 			}
 		});
-		// We compare the stringified version of the arrays
-		// (it does not really matter if we are detecting differences
-		// for reordered pvds even if they are the same : in this case
-		// we will notify more often than strictly necessary, but this
-		// will not hurt)
-		if (JSON.stringify(CurrentListPvD) !== JSON.stringify(newListPvD)) {
-			pvdEmitter.emit("pvdList", newListPvD);
 
-			CurrentListPvD = newListPvD;
-		}
+		// Always notify the new pvd list, even if it has not
+		// changed
+		CurrentListPvD = newListPvD;
+		pvdEmitter.emit("pvdList", CurrentListPvD);
 		dlog("New pvd list : " + JSON.stringify(AllPvd, null, 4));
 		return;
 	}
