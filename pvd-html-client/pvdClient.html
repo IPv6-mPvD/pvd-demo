@@ -98,7 +98,6 @@
 			var pvdList = m.payload.pvdList;
 
 			var MyTable = "<table>";
-			MyTable += "<tr><td align='center' id='host-date'></td></tr>";
 			pvdList.forEach(function(Pvd) {
 				MyTable +=
 					"<tr>" +
@@ -248,7 +247,10 @@
 	<td width=100% id="pvdAttributesLabel" style="background-color:PeachPuff; font-style:normal; font-weight:bold">PvD Attributes</td>
 </tr>
 <tr style="vertical-align:top" width=100%>
-	<td id="pvdList" style="background-color: AntiqueWhite" width=15%></td>
+	<td align="center" style="background-color: AntiqueWhite" width=15%>
+		<div id="host-date"/>
+		<div id="pvdList"/>
+	</td>
 	<td id="pvdAttributes" style="white-space: pre-wrap; background-color: Bisque" width=85% />
 </tr>
 </body>
