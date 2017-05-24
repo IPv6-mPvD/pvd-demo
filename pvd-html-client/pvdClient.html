@@ -144,6 +144,10 @@
 				SetOnClick(Pvd);
 			});
 			CurrentPvdList = pvdList;
+
+			// Lastly, always refresh the current pvd (if any)
+			ShowPvD(CurrentPvd,
+				CurrentPvd == null : null ? AllAttributes[CurrentPvd]);
 		} else
 		if (m.what == "pvdAttributes") {
 			var Pvd = m.payload.pvd;
