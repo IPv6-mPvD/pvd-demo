@@ -114,7 +114,9 @@ function HandleOneLine(sock, msg) {
 
 	// Single line messages
 	if ((r = msg.match(/PVDID_LIST +(.*)/i)) != null) {
-		var newListPvD = r[1].match(/[^ ]+/g);
+		if ((newListPvD = r[1].match(/[^ ]+/g)) == null) {
+			return;
+		}
 
 		newListPvD.forEach(function(pvdId) {
 			if (AllPvd[pvdId] == null) {
