@@ -235,7 +235,7 @@ var server = http.createServer(function(req, res) {
 	res.end(page);
 });
 
-server.listen(HttpPort);
+server.listen(HttpPort, "::");
 
 var ws = new WebSocketServer({ httpServer : server, autoAcceptConnections: true });
 
