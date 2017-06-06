@@ -43,7 +43,7 @@
 	}
 
 	function UpdateTitle(Pvd) {
-		var PvdPart = (CurrentPvd == null) ? "" : " : " + Pvd;
+		var PvdPart = (Pvd == null) ? "" : " : " + Pvd;
 		PvdAttributesTitle.textContent = "PvD Attributes" + PvdPart;
 	}
 
@@ -102,7 +102,8 @@
 			ShowDate();
 		} else
 		if (m.what == "pvdList") {
-			// Create a new table of PvD
+			// Create a new table of PvD. The first line contains
+			// the host date
 			var pvdList = m.payload.pvdList;
 
 			var MyTable = "<table>";
