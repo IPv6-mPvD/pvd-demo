@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# In the context of a demo, we want to start some of the pvdid
+# In the context of a demo, we want to start some of the pvd
 # related daemons and utilities
 
 # This script is intended to be started on a host (at least,
@@ -10,15 +10,15 @@
 # besides this repository. This is not fine
 
 # Make sure to run any sudo command before starting this script
-# (otherwise starting the pvdid-daemon will fail by waiting input
+# (otherwise starting the pvdd will fail by waiting input
 # on stdin)
 
-cd ../pvdid-daemon || exit 1
+cd ../pvdd || exit 1
 
 nohup node ./tests/httpsServer.js >/dev/null 2>&1 &
-nohup sudo /bin/sh -c 'while true; do ./src/obj/pvdid-daemon; sleep 1; done' >/dev/null 2>&1 &
+nohup sudo /bin/sh -c 'while true; do ./src/obj/pvdd; sleep 1; done' >/dev/null 2>&1 &
 nohup node ./utils/pvdid-monitor -d >/dev/null 2>&1 &
 
 
-cd ../pvdid-demo
+cd ../pvd-demo
 nohup node ./pvd-html-client/pvdHttpServer.js >/dev/null 2>&1 &
