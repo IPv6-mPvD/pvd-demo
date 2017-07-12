@@ -11,11 +11,9 @@
 	var PvdAttributesContent;
 
 	function GetPvdElement(Pvd) {
-		if (Pvd == null) {
-			return(null);
-		}
-		var Id = "pvd-" + Pvd;
-		return(document.getElementById(Id));
+		return(Pvd == null ?
+				null :
+				document.getElementById("pvd-" + Pvd));
 	}
 
 	function DirtyPvD(Pvd) {
