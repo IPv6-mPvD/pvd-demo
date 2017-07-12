@@ -23,7 +23,7 @@ export PATH
 
 nohup node ./tests/httpsServer.js >/dev/null 2>&1 &
 nohup sudo pvdd >/dev/null 2>&1 &
-nohup node pvd-monitor -d >/dev/null 2>&1 &
+nohup pvd-monitor -d >/dev/null 2>&1 &
 
 cd ../pvd-demo
 NODE_PATH=/usr/local/lib/node_modules nohup node ./pvd-html-client/pvdHttpServer.js >/dev/null 2>&1 &
