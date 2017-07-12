@@ -90,7 +90,7 @@ regularCnx.on("pvdList", function(pvdList) {
 	/*
 	 * Always notify the new pvd list, even if it has not changed
 	 */
-	CurrentListPvD = newListPvD;
+	CurrentListPvD = pvdList;
 	pvdEmitter.emit("pvdList", CurrentListPvD);
 	dlog("New pvd list : " + JSON.stringify(allPvd, null, 4));
 });
@@ -214,23 +214,23 @@ ws.on('connect', function(conn) {
 
 function HandleMessage(conn, m) {
 	if (m == "PVDID_GET_LIST") {
-		conn.sendUTF(JSON.stringify({
+		Send2Client(conn, {
 			what : "pvdList",
 			payload : {
 				pvdList : CurrentListPvD
 			}
-		}));
+		});
 	} else
 	if (m == "PVDID_GET_ATTRIBUTES") {
 		for (var key in allPvd) {
 			if ((p = allPvd[key]) != null) {
-				conn.sendUTF(JSON.stringify({
+				Send2Client(conn, {
 					what : "pvdAttributes",
 					payload : {
 						pvd : p.pvd,
 						pvdAttributes : p.attributes
 					}
-				}));
+				});
 			}
 		};
 	}
