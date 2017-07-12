@@ -27,12 +27,16 @@ const EventEmitter = require('events').EventEmitter;
 
 var WebSocketServer = require('websocket').server;
 
+var pvdd = require("pvdd");
+
 var pvdEmitter = new EventEmitter();
 
 var Verbose = false;
 
-var AllPvd = {};
+var allPvd = {};
 var CurrentListPvD = [];
+
+var Port = parseInt(process.env["PVDID_PORT"]) || 10101;
 
 function dlog(s) {
 	if (Verbose) {
@@ -49,189 +53,69 @@ function GetJson(s) {
 	return(null);
 }
 
-function ComplainConnection(Port, err) {
+function ComplainConnection(err) {
 	dlog("Can not connect to pvdd on port " +
 	     Port +
 	     " (" + err.message + ")");
 }
 
 /*
- * NewPvD : registers a new pvd. If already existing, does nothing
- */
-function NewPvD(pvdId) {
-	if (AllPvd[pvdId] == null) {
-		AllPvd[pvdId] = { pvd : pvdId, attributes : {} };
-	}
-}
-
-/*
- * DelPvD : unregisters a pvd. This, for now, cancels any pending timer and
- * set its entry to null
- */
-function DelPvD(pvdId) {
-	AllPvd[pvdId] = null;
-}
-
-/*
- * UpdateAttributes : update the internal attributes structure for a given
- * pvdId and notifies all websocket connections. This function is called when
- * the attributes for the PvD have been received
- */
-function UpdateAttribute(sock, pvdId, attributes) {
-	dlog("UpdateAttribute : pvdId = " + pvdId + ", attributes = " + attributes);
-
-	if (AllPvd[pvdId] != null) {
-		if ((J = GetJson(attributes)) != null) {
-			AllPvd[pvdId].attributes = J;
-
-			pvdEmitter.emit("pvdAttributes", {
-				pvd : pvdId,
-				pvdAttributes : J
-			});
-		}
-	}
-}
-
-/*
- * HandleMultiLine : a multi-line message has been fully read
- * Parse the message and handle it
- */
-function HandleMultiLine(sock, msg) {
-	dlog("HandleMultiLine : msg = " + msg);
-
-	if ((r = msg.match(/PVDID_ATTRIBUTES +([^ \n]+)\n([\s\S]+)/i)) != null) {
-		UpdateAttribute(sock, r[1], r[2]);
-		return;
-	}
-	return;
-}
-
-/*
- * HandleOneLine : one line message handling. The trailing
- * \n must have been removed
- */
-var multiLines = false;
-var fullMsg = "";
-
-function HandleOneLine(sock, msg) {
-	dlog("Handling one line : " + msg + " (multiLines = " + multiLines + ")");
-
-	/*
-	 * We check the beginning of a multi-lines section
-	 * before anything else, to reset the buffer in case
-	 * a previous multi-lines was improperly closed
-	 */
-	if (msg == "PVDID_BEGIN_MULTILINE") {
-		multiLines = true;
-		fullMsg = "";
-		return;
-	}
-
-	/*
-	 * End of a multi-lines section ?
-	 */
-	if (msg == "PVDID_END_MULTILINE") {
-		HandleMultiLine(sock, fullMsg);
-		multiLines  = false;
-		return;
-	}
-
-	/*
-	 * Are we in a mult-line section ?
-	 */
-	if (multiLines) {
-		fullMsg += msg + "\n";
-		return;
-	}
-
-	/*
-	 * Single line messages
-	 */
-	if ((r = msg.match(/PVDID_LIST +(.*)/i)) != null) {
-		if ((newListPvD = r[1].match(/[^ ]+/g)) == null) {
-			newListPvD = [];
-		}
-
-		newListPvD.forEach(function(pvdId) {
-			if (AllPvd[pvdId] == null) {
-				/*
-				 * New PvD => retrieve its attributes
-				 */
-				NewPvD(pvdId);
-				sock.write("PVDID_GET_ATTRIBUTES " + pvdId + "\n");
-			}
-		});
-
-		/*
-		 * Always notify the new pvd list, even if it has not
-		 * changed
-		 */
-		CurrentListPvD = newListPvD;
-		pvdEmitter.emit("pvdList", CurrentListPvD);
-		dlog("New pvd list : " + JSON.stringify(AllPvd, null, 4));
-		return;
-	}
-
-	if (msg.match(/PVDID_NEW_PVDID.*/i) != null) {
-		/*
-		 * Ignore them (we prefer using PVDID_LIST instead)
-		 */
-		return;
-	}
-
-	if ((r = msg.match(/PVDID_DEL_PVDID +([^ ]+)/i)) != null) {
-		/*
-		 * We must stop monitoring this PvD and unregister it
-		 */
-		DelPvD(r[1]);
-		return;
-	}
-
-	if ((r = msg.match(/PVDID_ATTRIBUTES +([^ ]+) +(.+)/i)) != null) {
-		UpdateAttribute(sock, r[1], r[2]);
-		return;
-	}
-	return;
-}
-
-/*
  * Regular connection related functions. The regular connection will be used to send
  * queries (PvD list and attributes) and to receive replies/notifications
  */
-function regularSockInit(sock) {
-	sock.write("PVDID_GET_LIST\n");
-	sock.write("PVDID_SUBSCRIBE_NOTIFICATIONS\n");
-	sock.write("PVDID_SUBSCRIBE *\n");
-}
+var regularCnx = pvdd.connect({ autoReconnect : true, port : Port });
 
-var regularSock = null;
+regularCnx.on("connect", function() {
+	regularCnx.getList();
+	regularCnx.subscribeNotifications();
+	regularCnx.subscribeAttribute("*");
+	console.log("Regular connection established with pvdd");
+});
 
-function regularConnection(Port) {
+regularCnx.on("error", function(err) {
+	ComplainConnection(err);
+});
+
+regularCnx.on("pvdList", function(pvdList) {
+	pvdList.forEach(function(pvdId) {
+		if (allPvd[pvdId] == null) {
+			/*
+			 * New Pvd : create an entry and retrieve its
+			 * attributes
+			 */
+			allPvd[pvdId] = { pvd : pvdId, attributes : {} };
+			regularCnx.getAttributes(pvdId);
+		}
+	});
 	/*
-	 * Perform the initial connection, and automatic reconnection
-	 * in case we lose connection with it
+	 * Always notify the new pvd list, even if it has not changed
 	 */
-	if (regularSock == null) {
-		regularSock = Net.connect({ host : "0.0.0.0", port : Port });
-		regularSock.on("connect", function() {
-			regularSockInit(regularSock);
-			console.log("Regular connection established with pvdd");
-		});
-		regularSock.on("error", function(err) {
-			ComplainConnection(Port, err);
-			regularSock = null;
-		});
-		regularSock.on("data", function(d) {
-			d.toString().split("\n").forEach(function(oneLine) {
-				HandleOneLine(regularSock, oneLine);
-			});
+	CurrentListPvD = newListPvD;
+	pvdEmitter.emit("pvdList", CurrentListPvD);
+	dlog("New pvd list : " + JSON.stringify(allPvd, null, 4));
+});
+
+regularCnx.on("delPvd", function(pvdId) {
+	allPvd[pvdId] = null;
+});
+
+regularCnx.on("pvdAttributes", function(pvdId, attrs) {
+	/*
+	 * UpdateAttributes : update the internal attributes structure for a
+	 * given pvdId and notifies all websocket connections. This function
+	 * is called when the attributes for the PvD have been received
+	 */
+	dlog("Attributes for " + pvdId + " = " + JSON.stringify(attrs, null, 8));
+
+	if (allPvd[pvdId] != null) {
+		allPvd[pvdId].attributes = attrs;
+
+		pvdEmitter.emit("pvdAttributes", {
+			pvd : pvdId,
+			pvdAttributes : attrs
 		});
 	}
-	else {
-		regularSock.write("\n");	// to trigger a connection error
-	}
-	setTimeout(regularConnection, 1000, Port);
-}
+});
 
 /*
  * Options parsing
@@ -264,12 +148,8 @@ if (Help) {
 	process.exit(0);
 }
 
-var Port = parseInt(process.env["PVDID_PORT"]) || 10101;
-
 console.log("Listening on http port " + HttpPort + ", pvdd port " + Port);
 console.log("Hostname : " + os.hostname());
-
-regularConnection(Port);
 
 /*
  * =================================================
@@ -342,8 +222,8 @@ function HandleMessage(conn, m) {
 		}));
 	} else
 	if (m == "PVDID_GET_ATTRIBUTES") {
-		for (var key in AllPvd) {
-			if ((p = AllPvd[key]) != null) {
+		for (var key in allPvd) {
+			if ((p = allPvd[key]) != null) {
 				conn.sendUTF(JSON.stringify({
 					what : "pvdAttributes",
 					payload : {
