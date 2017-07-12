@@ -16,8 +16,7 @@
 	limitations under the License.
 */
 /*
- * This script starts a server that can be used in simulation mode
- * to debug the pvd.json retrieval and monitoring feature
+ * This script starts a server that can be used to monitor pvds via a browser
  */
 const Net = require("net");
 const http = require('http');
@@ -31,52 +30,38 @@ var pvdd = require("pvdd");
 
 var pvdEmitter = new EventEmitter();
 
-var Verbose = false;
+var verbose = false;
 
 var allPvd = {};
-var CurrentListPvD = [];
+var currentPvdList = [];
 
 var Port = parseInt(process.env["PVDID_PORT"]) || 10101;
 
 function dlog(s) {
-	if (Verbose) {
+	if (verbose) {
 		console.log(s);
 	}
-}
-
-function GetJson(s) {
-	try {
-		return(JSON.parse(s));
-	} catch (e) {
-		dlog("GetJson(" + s + ") : invalid JSON (" + e + ")")
-	};
-	return(null);
-}
-
-function ComplainConnection(err) {
-	dlog("Can not connect to pvdd on port " +
-	     Port +
-	     " (" + err.message + ")");
 }
 
 /*
  * Regular connection related functions. The regular connection will be used to send
  * queries (PvD list and attributes) and to receive replies/notifications
  */
-var regularCnx = pvdd.connect({ autoReconnect : true, port : Port });
+var pvddCnx = pvdd.connect({ autoReconnect : true, port : Port });
 
-regularCnx.on("connect", function() {
-	regularCnx.getList();
-	regularCnx.subscribeNotifications();
-	regularCnx.subscribeAttribute("*");
+pvddCnx.on("connect", function() {
+	pvddCnx.getList();
+	pvddCnx.subscribeNotifications();
+	pvddCnx.subscribeAttribute("*");
 	console.log("Regular connection established with pvdd");
 });
 
-regularCnx.on("error", function(err) {
-	ComplainConnection(err);
+pvddCnx.on("error", function(err) {
+	dlog("Can not connect to pvdd on port " +
+		Port + " (" + err.message + ")");
 });
 
-regularCnx.on("pvdList", function(pvdList) {
+pvddCnx.on("pvdList", function(pvdList) {
 	pvdList.forEach(function(pvdId) {
 		if (allPvd[pvdId] == null) {
 			/*
@@ -84,22 +69,22 @@ regularCnx.on("pvdList", function(pvdList) {
 			 * attributes
 			 */
 			allPvd[pvdId] = { pvd : pvdId, attributes : {} };
-			regularCnx.getAttributes(pvdId);
+			pvddCnx.getAttributes(pvdId);
 		}
 	});
 	/*
 	 * Always notify the new pvd list, even if it has not changed
 	 */
-	CurrentListPvD = pvdList;
-	pvdEmitter.emit("pvdList", CurrentListPvD);
+	currentPvdList = pvdList;
+	pvdEmitter.emit("pvdList", currentPvdList);
 	dlog("New pvd list : " + JSON.stringify(allPvd, null, 4));
 });
 
-regularCnx.on("delPvd", function(pvdId) {
+pvddCnx.on("delPvd", function(pvdId) {
 	allPvd[pvdId] = null;
 });
 
-regularCnx.on("pvdAttributes", function(pvdId, attrs) {
+pvddCnx.on("pvdAttributes", function(pvdId, attrs) {
 	/*
 	 * UpdateAttributes : update the internal attributes structure for a
 	 * given pvdId and notifies all websocket connections. This function
@@ -129,7 +114,7 @@ process.argv.forEach(function(arg) {
 		Help = true;
 	} else
 	if (arg == "-v" || arg == "--verbose") {
-		Verbose = true;
+		verbose = true;
 	} else
 	if (arg == "-p" || arg == "--port") {
 		PortNeeded = true;
@@ -217,7 +202,7 @@ function HandleMessage(conn, m) {
 		Send2Client(conn, {
 			what : "pvdList",
 			payload : {
-				pvdList : CurrentListPvD
+				pvdList : currentPvdList
 			}
 		});
 	} else
