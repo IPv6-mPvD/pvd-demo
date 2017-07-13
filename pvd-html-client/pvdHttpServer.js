@@ -35,7 +35,7 @@ var verbose = false;
 var allPvd = {};
 var currentPvdList = [];
 
-var Port = parseInt(process.env["PVDID_PORT"]) || 10101;
+var Port = parseInt(process.env["PVDD_PORT"]) || 10101;
 
 function dlog(s) {
 	if (verbose) {
@@ -198,7 +198,7 @@ ws.on('connect', function(conn) {
 });
 
 function HandleMessage(conn, m) {
-	if (m == "PVDID_GET_LIST") {
+	if (m == "PVD_GET_LIST") {
 		Send2Client(conn, {
 			what : "pvdList",
 			payload : {
@@ -206,7 +206,7 @@ function HandleMessage(conn, m) {
 			}
 		});
 	} else
-	if (m == "PVDID_GET_ATTRIBUTES") {
+	if (m == "PVD_GET_ATTRIBUTES") {
 		for (var key in allPvd) {
 			if ((p = allPvd[key]) != null) {
 				Send2Client(conn, {

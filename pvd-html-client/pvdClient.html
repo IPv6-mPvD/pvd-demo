@@ -211,8 +211,8 @@
 			ws.onopen = function(ev) {
 				console.log("websocket connection established");
 
-				SendWs("PVDID_GET_LIST");
-				SendWs("PVDID_GET_ATTRIBUTES");
+				SendWs("PVD_GET_LIST");
+				SendWs("PVD_GET_ATTRIBUTES");
 
 				ConnectionSucceeded = true;
 			};
