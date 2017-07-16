@@ -22,7 +22,7 @@ PATH=/usr/local/sbin:$PATH
 export PATH
 
 nohup node ./tests/httpsServer.js >/dev/null 2>&1 &
-nohup sudo pvdd >/dev/null 2>&1 &
+nohup sudo /usr/local/sbin/pvdd >/dev/null 2>&1 &
 nohup pvd-monitor -d >/dev/null 2>&1 &
 
 cd ../pvd-demo
