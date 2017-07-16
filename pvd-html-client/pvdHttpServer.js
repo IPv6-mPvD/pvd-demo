@@ -59,18 +59,21 @@ pvddCnx.on("connect", function() {
 pvddCnx.on("error", function(err) {
 	dlog("Can not connect to pvdd on port " +
 		Port + " (" + err.message + ")");
+	allPvd = {};
 });
 
 pvddCnx.on("pvdList", function(pvdList) {
 	pvdList.forEach(function(pvdId) {
 		if (allPvd[pvdId] == null) {
 			/*
-			 * New Pvd : create an entry and retrieve its
-			 * attributes
+			 * New Pvd : create an entry
 			 */
 			allPvd[pvdId] = { pvd : pvdId, attributes : {} };
-			pvddCnx.getAttributes(pvdId);
 		}
+		/*
+		 * Always retrieve its attributes
+		 */
+		pvddCnx.getAttributes(pvdId);
 	});
 	/*
 	 * Always notify the new pvd list, even if it has not changed
@@ -107,7 +110,9 @@ pvddCnx.on("pvdAttributes", function(pvdId, attrs) {
  */
 var Help = false;
 var PortNeeded = false;
+var FileNeeded  = false;
 var HttpPort = 8080;
+var FileHtml = __dirname + "/pvdClient.html";
 
 process.argv.forEach(function(arg) {
 	if (arg == "-h" || arg == "--help") {
@@ -119,9 +124,16 @@ process.argv.forEach(function(arg) {
 	if (arg == "-p" || arg == "--port") {
 		PortNeeded = true;
 	} else
+	if (arg == "-f" || arg == "--file") {
+		FileNeeded = true;
+	} else
 	if (PortNeeded) {
 		HttpPort = arg;
 		PortNeeded = false;
+	} else
+	if (FileNeeded) {
+		FileHtml = arg;
+		FileNeeded = false;
 	}
 });
 
@@ -130,11 +142,13 @@ if (Help) {
 	console.log("with option :");
 	console.log("\t-v|--verbose : outputs extra logs during operation");
 	console.log("\t-p|--port #  : http port to listen on (default 8080)");
+	console.log("\t-f|--file <path.html> : static file to serve");
 	process.exit(0);
 }
 
 console.log("Listening on http port " + HttpPort + ", pvdd port " + Port);
 console.log("Hostname : " + os.hostname());
+console.log("Serving static file : " + FileHtml);
 
 /*
  * =================================================
@@ -144,7 +158,7 @@ console.log("Hostname : " + os.hostname());
  * via the websocket (for PvD related informations)
  */
 var server = http.createServer(function(req, res) {
-	var page = fs.readFileSync(__dirname + "/pvdClient.html");
+	var page = fs.readFileSync(FileHtml);
 	res.writeHead(200);
 	res.end(page);
 });
@@ -165,22 +179,14 @@ ws.on('connect', function(conn) {
 		payload : { hostname : os.hostname() }
 	});
 
-	conn.on("message", function(m) {
-		if (m.type == "utf8") {
-			HandleMessage(conn, m.utf8Data);
-		}
-	});
-	conn.on("close", function() {
-		console.log("Connection closed");
-	});
-
-	pvdEmitter.on("pvdList", function(ev) {
+	function pvdList(ev) {
 		Send2Client(conn, {
 			what : "pvdList",
 			payload : { pvdList : ev }
 		});
-	});
-	pvdEmitter.on("pvdAttributes", function(ev) {
+	}
+
+	function pvdAttributes(ev) {
 		Send2Client(conn, {
 			what : "pvdAttributes",
 			payload : {
@@ -188,13 +194,31 @@ ws.on('connect', function(conn) {
 				pvdAttributes : ev.pvdAttributes
 			}
 		});
-	});
-	pvdEmitter.on("hostDate", function(ev) {
+	}
+
+	function hostDate(ev) {
 		Send2Client(conn, {
 			what : "hostDate",
 			payload : { hostDate : ev }
 		});
+	}
+
+	pvdEmitter.on("pvdList", pvdList);
+	pvdEmitter.on("pvdAttributes", pvdAttributes);
+	pvdEmitter.on("hostDate", hostDate);
+
+	conn.on("message", function(m) {
+		if (m.type == "utf8") {
+			HandleMessage(conn, m.utf8Data);
+		}
 	});
+	conn.on("close", function() {
+		pvdEmitter.removeListener("pvdList", pvdList);
+		pvdEmitter.removeListener("pvdAttributes", pvdAttributes);
+		pvdEmitter.removeListener("hostDate", hostDate);
+		console.log("Connection closed");
+	});
+
 });
 
 function HandleMessage(conn, m) {
