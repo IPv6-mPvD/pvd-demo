@@ -158,9 +158,18 @@ console.log("Serving static file : " + FileHtml);
  * via the websocket (for PvD related informations)
  */
 var server = http.createServer(function(req, res) {
-	var page = fs.readFileSync(FileHtml);
-	res.writeHead(200);
-	res.end(page);
+
+	if (req.url == 'pvd-current.json') {
+		res.setHeader('Content-Type', 'application/json');
+		res.send(JSON.stringify(currentPvdList));
+	else if (req.url == 'pvd-all.json') {
+		res.setHeader('Content-Type', 'application/json');
+		res.send(JSON.stringify(allPvd));
+	} else {
+		var page = fs.readFileSync(FileHtml);
+		res.writeHead(200);
+		res.end(page);
+	}
 });
 
 server.listen(HttpPort, "::");
