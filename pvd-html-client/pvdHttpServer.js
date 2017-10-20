@@ -159,10 +159,10 @@ console.log("Serving static file : " + FileHtml);
  */
 var server = http.createServer(function(req, res) {
 
-	if (req.url == 'pvd-current.json') {
+	if (req.url == '/pvd-current.json') {
 		res.setHeader('Content-Type', 'application/json');
 		res.send(JSON.stringify(currentPvdList));
-	} else if (req.url == 'pvd-all.json') {
+	} else if (req.url == '/pvd-all.json') {
 		res.setHeader('Content-Type', 'application/json');
 		res.send(JSON.stringify(allPvd));
 	} else {
